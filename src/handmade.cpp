@@ -60,10 +60,10 @@ Win32ResizeDIBSection(int Width, int Height)
     // Cast BitmapMemory from void* to uint8*
     uint8* Row = (uint8*)BitmapMemory;
     int Pitch = Width * BytesPerPixel;
-    for (int Y = 0; Y < BitmapHeight; ++Y)
+    for (int Y = 0; Y < BitmapHeight; Y++)
     {
-        uint32* Pixel = (uint32*)Row;
-        for (int X = 0; X < BitmapWidth; ++X)
+        uint8* Pixel = (uint8*)Row;
+        for (int X = 0; X < BitmapWidth; X++)
         {
             /*            Pixel +0 +1 +2 +3
              * Pixel in memory: 00 00 00 00
@@ -71,6 +71,7 @@ Win32ResizeDIBSection(int Width, int Height)
              *
              * Where xx is padding
              */
+
             *Pixel = (uint8)X;
             ++Pixel;
 
