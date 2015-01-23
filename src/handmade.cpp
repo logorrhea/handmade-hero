@@ -8,24 +8,44 @@ MainWindowCallback(HWND Window,
                    LPARAM LParam)
 {
     LRESULT Result = 0;
+
     switch(Message)
     {
         case WM_SIZE:
         {
             OutputDebugStringA("WM_SIZE\n");
         } break;
+
         case WM_DESTROY:
         {
             OutputDebugStringA("WM_DESTROY\n");
         } break;
+
         case WM_CLOSE:
         {
             OutputDebugStringA("WM_CLOSE\n");
         } break;
+
+        case WM_PAINT:
+        {
+            // Paint the window white
+            PAINTSTRUCT Paint;
+            HDC DeviceContext = BeginPaint(Window, &Paint);
+            int X = Paint.rcPaint.left;
+            int Y = Paint.rcPaint.top;
+            int Height = Paint.rcPaint.bottom - Paint.rcPaint.top;
+            int Width = Paint.rcPaint.right - Paint.rcPaint.left;
+            static DWORD Operation = WHITENESS;
+            PatBlt(DeviceContext, X, Y, Width, Height, Operation);
+            Operation = (Operation == WHITENESS) ? BLACKNESS : WHITENESS;
+            EndPaint(Window, &Paint);
+        } break;
+
         case WM_ACTIVATEAPP:
         {
             OutputDebugStringA("WM_ACTIVEAPP\n");
         } break;
+
         default:
         {
             Result = DefWindowProc(Window, Message, WParam, LParam);
