@@ -3,6 +3,6 @@
 mkdir .\build
 pushd .\build
 
-cl ..\handmade.cpp
+cl -Zi ..\src\handmade.cpp
 
 popd
