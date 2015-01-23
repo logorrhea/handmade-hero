@@ -24,7 +24,37 @@ global_var BITMAPINFO BitmapInfo;
 global_var void *BitmapMemory;
 global_var int BitmapHeight;
 global_var int BitmapWidth;
+global_var int BytesPerPixel = 4;
 
+
+internal_func void
+RenderWeirdGradient(int xOffset, int yOffset)
+{
+    int width = BitmapWidth;
+    int height = BitmapHeight;
+
+    uint8* row = (uint8*)BitmapMemory;
+    int pitch = width * BytesPerPixel;
+    for (int y = 0; y < BitmapHeight; y++)
+    {
+        uint32* pixel = (uint32*)row;
+        for (int x = 0; x < BitmapWidth; x++)
+        {
+            /*            pixel +0 +1 +2 +3
+             * pixel in memory: 00 00 00 00
+             *                  BB GG RR xx
+             *
+             * Where xx is padding
+             */
+            uint8 blue = (x + xOffset);
+            uint8 green = (y + yOffset);
+
+            *pixel++ = (green << 8) | blue; 
+
+        }
+        row += pitch;
+    }
+}
 
 /**
  * Resize DIB Section, or initialize it
@@ -53,39 +83,9 @@ Win32ResizeDIBSection(int Width, int Height)
     BitmapInfo.bmiHeader.biBitCount = 32;
     BitmapInfo.bmiHeader.biCompression = BI_RGB;
 
-    int BytesPerPixel = 4;
     int BitmapMemorySize = BitmapWidth*BitmapHeight*BytesPerPixel;
     BitmapMemory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
-
-    // Cast BitmapMemory from void* to uint8*
-    uint8* Row = (uint8*)BitmapMemory;
-    int Pitch = Width * BytesPerPixel;
-    for (int Y = 0; Y < BitmapHeight; Y++)
-    {
-        uint8* Pixel = (uint8*)Row;
-        for (int X = 0; X < BitmapWidth; X++)
-        {
-            /*            Pixel +0 +1 +2 +3
-             * Pixel in memory: 00 00 00 00
-             *                  BB GG RR xx
-             *
-             * Where xx is padding
-             */
-
-            *Pixel = (uint8)X;
-            ++Pixel;
-
-            *Pixel = (uint8)Y;
-            ++Pixel;
-
-            *Pixel = 0;
-            ++Pixel;
-
-            *Pixel = 0;
-            ++Pixel;
-        }
-        Row += Pitch;
-    }
+    RenderWeirdGradient(0, 0);
 
 }
 
@@ -183,7 +183,7 @@ WinMain(HINSTANCE Instance,
     // Register window class
     if (RegisterClass(&WindowClass))
     {
-        HWND WindowHandle =
+        HWND window =
             CreateWindowEx(
               0,
               WindowClass.lpszClassName,
@@ -197,23 +197,39 @@ WinMain(HINSTANCE Instance,
               0,
               Instance,
               0);
-        if (WindowHandle)
+        if (window)
         {
             Running = true;
-            MSG Message;
+            MSG message;
+            int xOffset = 0;
+            int yOffset = 0;
             while(Running)
             {
-                BOOL MessageResult = GetMessage(&Message, 0, 0, 0);
-                if (MessageResult > 0)
+                // Use while to process entire message queue in-between
+                // draw calls
+                while (PeekMessage(&message, 0, 0, 0, PM_REMOVE))
                 {
-                    // Translate and Dispatch message
-                    TranslateMessage(&Message);
-                    DispatchMessage(&Message);
+                    // Make sure WM_QUI message gets handled properly
+                    if (message.message == WM_QUIT)
+                    {
+                        Running = false;
+                    }
+
+                    TranslateMessage(&message);
+                    DispatchMessage(&message);
                 }
-                else
-                {
-                    break;
-                }
+
+                // While not handling messages, render things
+                RenderWeirdGradient(xOffset, yOffset);
+                HDC deviceContext = GetDC(window);
+                RECT clientRect;
+                GetClientRect(window, &clientRect);
+
+                int windowWidth = clientRect.right - clientRect.left;
+                int windowHeight = clientRect.bottom - clientRect.top;
+                Win32UpdateWindow(deviceContext, &clientRect, 0, 0, windowWidth, windowHeight);
+
+                ++xOffset;
             }
         }
         else
