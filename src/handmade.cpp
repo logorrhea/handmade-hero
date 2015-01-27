@@ -42,7 +42,7 @@ struct win32_window_dimension
 typedef X_INPUT_GET_STATE(x_input_get_state);
 X_INPUT_GET_STATE(XInputGetStateStub)
 {
-    return(0);
+    return(ERROR_DEVICE_NOT_CONNECTED);
 }
 global_var x_input_get_state* XInputGetState_ = XInputGetStateStub;
 #define XInputGetState XInputGetState_
@@ -52,7 +52,7 @@ global_var x_input_get_state* XInputGetState_ = XInputGetStateStub;
 typedef X_INPUT_SET_STATE(x_input_set_state);
 X_INPUT_SET_STATE(XInputSetStateStub)
 {
-    return(0);
+    return(ERROR_DEVICE_NOT_CONNECTED);
 }
 global_var x_input_set_state* XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
@@ -60,7 +60,15 @@ global_var x_input_set_state* XInputSetState_ = XInputSetStateStub;
 internal_func void
 Win32LoadXInput(void)
 {
-    HMODULE xLib = LoadLibraryA("xinput1_3.dll");
+    // TODO: Test this on Windows 8
+    // Try to load xinput 1.4 first. If it fails,
+    // try to load xinput 1.3
+    HMODULE xLib = LoadLibraryA("xinput1_4.dll");
+    if (!xLib)
+    {
+        HMODULE xLib = LoadLibraryA("xinput1_3.dll");
+    }
+
     if (xLib)
     {
         XInputGetState = (x_input_get_state*) GetProcAddress(xLib, "XInputGetState");
@@ -270,6 +278,12 @@ Win32MainWindowCallback(HWND Window,
             else if (vkCode == VK_SPACE)
             {
                 OutputDebugStringA("Space\n");
+            }
+
+            bool altKeyDown = (LParam & (1 << 29)) != 0;
+            if (vkCode == VK_F4 && altKeyDown)
+            {
+                Running = false;
             }
         } break;
 
