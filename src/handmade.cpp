@@ -525,6 +525,8 @@ WinMain(HINSTANCE Instance,
             LARGE_INTEGER lastCounter;
             QueryPerformanceCounter(&lastCounter);
 
+            int64 lastCycleCount = __rdtsc();
+
             while(Running)
             {
 
@@ -628,23 +630,25 @@ WinMain(HINSTANCE Instance,
 
                 ++xOffset;
 
+                int64 endCycleCount = __rdtsc();
+
                 LARGE_INTEGER endCounter;
                 QueryPerformanceCounter(&endCounter);
 
+                int64 cyclesElapsed = endCycleCount - lastCycleCount;
                 int64 counterElapsed = endCounter.QuadPart - lastCounter.QuadPart;
                 int32 msPerFrame = (int32)(1000 * counterElapsed / perfCountFrequency);
                 int32 fps = 1000 / msPerFrame;
-
-                    // 7 ms per frame
-                    // 1 frame = 7ms
-                    // 1000 ms / second
+                int32 mcpf = (int32)(cyclesElapsed / (1000*1000));
 
                 // Display ms/frame value
+                // TODO(tyler): Debug only
                 char strbuf[256];
-                wsprintf(strbuf, "FPS: %d\n", fps);
+                wsprintf(strbuf, "%dms/f, %dfps, %dc/f\n", msPerFrame, fps, mcpf);
                 OutputDebugStringA(strbuf);
 
                 lastCounter = endCounter;
+                lastCycleCount = endCycleCount;
             }
         }
         else
