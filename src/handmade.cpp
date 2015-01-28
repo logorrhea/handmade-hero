@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <stdint.h>
 #include <xinput.h>
+#include <dsound.h>
 
 #define internal_func static 
 #define local_persist static 
@@ -57,6 +58,11 @@ X_INPUT_SET_STATE(XInputSetStateStub)
 global_var x_input_set_state* XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
 
+// Artificial DirectSound support
+#define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND *ppDS, LPUNKNOWN pUnkOuter)
+typedef DIRECT_SOUND_CREATE(direct_sound_create);
+global_var LPDIRECTSOUNDBUFFER gSecondaryBuffer;
+
 internal_func void
 Win32LoadXInput(void)
 {
@@ -76,6 +82,96 @@ Win32LoadXInput(void)
     }
 }
 
+
+internal_func void
+Win32InitDSound(HWND window, int32 samplesPerSecond, int32 bufferSize)
+{
+    // Load the library
+    HMODULE dSoundLibrary = LoadLibraryA("dsound.dll");
+
+    // Result object for printing error messages
+    HRESULT result;
+
+    // Get a DirectSound object
+    if (dSoundLibrary)
+    {
+        // "Create" a primary buffer
+        direct_sound_create* DirectSoundCreate = (direct_sound_create*)GetProcAddress(dSoundLibrary, "DirectSoundCreate");
+
+        // TODO(tyler): Double-check that this works on XP - DirectSound8 or 7?
+        LPDIRECTSOUND ds;
+        result = DirectSoundCreate(0, &ds, 0);
+        if (DirectSoundCreate && SUCCEEDED(result))
+        {
+            WAVEFORMATEX waveFormat = {};
+            waveFormat.wFormatTag = WAVE_FORMAT_PCM;
+            waveFormat.nChannels = 2;
+            waveFormat.nSamplesPerSec = samplesPerSecond;
+            waveFormat.wBitsPerSample = 16;
+            waveFormat.nBlockAlign =
+                (waveFormat.nChannels*waveFormat.wBitsPerSample) / 8;
+            waveFormat.nAvgBytesPerSec = waveFormat.nSamplesPerSec*waveFormat.nBlockAlign;
+            waveFormat.cbSize = 0;
+
+            result = ds->SetCooperativeLevel(window, DSSCL_PRIORITY);
+            if (SUCCEEDED(result))
+            {
+                DSBUFFERDESC bufferDescription = {};
+                bufferDescription.dwSize = sizeof(bufferDescription);
+                bufferDescription.dwFlags = DSBCAPS_PRIMARYBUFFER;
+
+                LPDIRECTSOUNDBUFFER primaryBuffer;
+                result = ds->CreateSoundBuffer(&bufferDescription, &primaryBuffer, 0);
+                if (SUCCEEDED(result))
+                {
+                    result = primaryBuffer->SetFormat(&waveFormat);
+                    if(SUCCEEDED(result))
+                    {
+                        OutputDebugStringA("We have set the format of the primary buffer\n");
+                        // We have finally set the format
+                    }
+                    else
+                    {
+                        // TODO(tyler): Logging
+                    }
+                }
+                else
+                {
+                    // TODO(tyler): Logging
+                }
+            }
+            else
+            {
+                // TODO(tyler): Logging
+            }
+
+            // "Create" a secondary buffer, which is what we'll actually write to
+            DSBUFFERDESC bufferDescription = {};
+            bufferDescription.dwSize = sizeof(bufferDescription);
+            bufferDescription.dwFlags = 0;
+            bufferDescription.dwBufferBytes = bufferSize;
+            bufferDescription.lpwfxFormat = &waveFormat;
+            result = ds->CreateSoundBuffer(&bufferDescription, &gSecondaryBuffer, 0);
+            if(SUCCEEDED(result))
+            {
+                // Start it playing
+                OutputDebugStringA("Primary buffer format was set.\n");
+            }
+            else
+            {
+                // TODO(tyler): Logging
+            }
+        }
+        else
+        {
+            // TODO(tyler): Logging
+        }
+    }
+    else
+    {
+        // TODO(tyler): Logging
+    }
+}
 
 win32_window_dimension
 Win32GetWindowDimension(HWND window)
@@ -334,10 +430,24 @@ WinMain(HINSTANCE Instance,
               0);
         if (window)
         {
+            // Graphics test
             int xOffset = 0;
             int yOffset = 0;
 
+            // Direct Sound Test
+            int samplesPerSecond = 48000;
+            int middleCHz = 256;
+            int toneVolume = 6000;
+            uint32 runningSampleIndex = 0;
+            int squareWavePeriod = samplesPerSecond/middleCHz;
+            int halfSquareWavePeriod = squareWavePeriod/2;
+            int bytesPerSample = sizeof(int16)*2;
+            int secondaryBufferSize = samplesPerSecond*bytesPerSample;
+
+            Win32InitDSound(window, samplesPerSecond, secondaryBufferSize);
+            gSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
             Running = true;
+
             while(Running)
             {
                 // Use while to process entire message queue in-between
@@ -405,6 +515,55 @@ WinMain(HINSTANCE Instance,
 
                 // While not handling messages, render things
                 RenderWeirdGradient(&gBackBuffer, xOffset, yOffset);
+
+                // DirectSound output test
+                DWORD playCursor;
+                DWORD writeCursor;
+                if (SUCCEEDED(gSecondaryBuffer->GetCurrentPosition(&playCursor, &writeCursor)))
+                {
+                    DWORD byteToLock = runningSampleIndex*bytesPerSample % secondaryBufferSize;
+                    DWORD bytesToWrite;
+                    if (byteToLock > playCursor)
+                    {
+                        bytesToWrite = (secondaryBufferSize - byteToLock) + playCursor;
+                    }
+                    else
+                    {
+                        bytesToWrite = playCursor - byteToLock;
+                    }
+
+                    VOID* region1;
+                    DWORD region1Size;
+                    VOID* region2;
+                    DWORD region2Size;
+                    if (SUCCEEDED(gSecondaryBuffer->Lock(byteToLock,
+                                                         bytesToWrite,
+                                                         &region1, &region1Size,
+                                                         &region2, &region2Size,
+                                                         0)))
+                    {
+                        // TODO(tyler): Assert that region1Size/region2Size is valid
+                        DWORD region1SampleCount = region1Size/bytesPerSample;
+                        int16* sampleOut = (int16*) region1;
+                        for (DWORD sampleIndex = 0; sampleIndex < region1Size; ++sampleIndex)
+                        {
+                            int16 sampleValue = ((runningSampleIndex / halfSquareWavePeriod) % 2) ? toneVolume : -toneVolume;
+                            *sampleOut++ = sampleValue;
+                            *sampleOut++ = sampleValue;
+                            ++runningSampleIndex;
+                        }
+                        DWORD region2SampleCount = region2Size/bytesPerSample;
+                        sampleOut = (int16*) region2;
+                        for (DWORD sampleIndex = 0; sampleIndex < region2Size; ++sampleIndex)
+                        {
+                            int16 sampleValue = ((runningSampleIndex / halfSquareWavePeriod) % 2) ? toneVolume : -toneVolume;
+                            *sampleOut++ = sampleValue;
+                            *sampleOut++ = sampleValue;
+                            ++runningSampleIndex;
+                        }
+                    }
+                }
+
                 HDC deviceContext = GetDC(window);
                 win32_window_dimension dimensions = Win32GetWindowDimension(window);
 
