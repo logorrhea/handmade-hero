@@ -463,6 +463,11 @@ WinMain(HINSTANCE Instance,
         LPSTR CommandLine,
         int ShowCode)
 {
+    // Cache performance counter frequency
+    LARGE_INTEGER perfCountFrequencyResult;
+    QueryPerformanceFrequency(&perfCountFrequencyResult);
+    int64 perfCountFrequency = perfCountFrequencyResult.QuadPart;
+
     WNDCLASSA WindowClass = {};
     Win32LoadXInput();
 
@@ -517,8 +522,12 @@ WinMain(HINSTANCE Instance,
             gSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
             Running = true;
 
+            LARGE_INTEGER lastCounter;
+            QueryPerformanceCounter(&lastCounter);
+
             while(Running)
             {
+
                 // Use while to process entire message queue in-between
                 // draw calls
                 MSG message;
@@ -618,6 +627,24 @@ WinMain(HINSTANCE Instance,
                         dimensions.width, dimensions.height);
 
                 ++xOffset;
+
+                LARGE_INTEGER endCounter;
+                QueryPerformanceCounter(&endCounter);
+
+                int64 counterElapsed = endCounter.QuadPart - lastCounter.QuadPart;
+                int32 msPerFrame = (int32)(1000 * counterElapsed / perfCountFrequency);
+                int32 fps = 1000 / msPerFrame;
+
+                    // 7 ms per frame
+                    // 1 frame = 7ms
+                    // 1000 ms / second
+
+                // Display ms/frame value
+                char strbuf[256];
+                wsprintf(strbuf, "FPS: %d\n", fps);
+                OutputDebugStringA(strbuf);
+
+                lastCounter = endCounter;
             }
         }
         else
