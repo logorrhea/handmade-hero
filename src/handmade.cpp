@@ -545,7 +545,7 @@ WinMain(HINSTANCE Instance,
                         // TODO(tyler): Assert that region1Size/region2Size is valid
                         DWORD region1SampleCount = region1Size/bytesPerSample;
                         int16* sampleOut = (int16*) region1;
-                        for (DWORD sampleIndex = 0; sampleIndex < region1Size; ++sampleIndex)
+                        for (DWORD sampleIndex = 0; sampleIndex < region1SampleCount; ++sampleIndex)
                         {
                             int16 sampleValue = ((runningSampleIndex / halfSquareWavePeriod) % 2) ? toneVolume : -toneVolume;
                             *sampleOut++ = sampleValue;
@@ -554,13 +554,15 @@ WinMain(HINSTANCE Instance,
                         }
                         DWORD region2SampleCount = region2Size/bytesPerSample;
                         sampleOut = (int16*) region2;
-                        for (DWORD sampleIndex = 0; sampleIndex < region2Size; ++sampleIndex)
+                        for (DWORD sampleIndex = 0; sampleIndex < region2SampleCount; ++sampleIndex)
                         {
                             int16 sampleValue = ((runningSampleIndex / halfSquareWavePeriod) % 2) ? toneVolume : -toneVolume;
                             *sampleOut++ = sampleValue;
                             *sampleOut++ = sampleValue;
                             ++runningSampleIndex;
                         }
+
+                        gSecondaryBuffer->Unlock(region1, region1Size, region2, region2Size);
                     }
                 }
 
