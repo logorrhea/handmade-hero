@@ -2,8 +2,13 @@
 
 #include "handmade.h"
 
+
 void
-MainLoop(void)
+GameMain(void)
 {
-    void *FileContents = PlatformLoadFile("foo.bmp");
+}
+
+void
+GameShutDown(void)
+{
 }

@@ -671,7 +671,7 @@ WinMain(HINSTANCE Instance,
                 LARGE_INTEGER endCounter;
                 QueryPerformanceCounter(&endCounter);
 
-                MainLoop();
+                GameLoop();
 
                 int64 cyclesElapsed = endCycleCount - lastCycleCount;
                 int64 counterElapsed = endCounter.QuadPart - lastCounter.QuadPart;
