@@ -1,3 +1,31 @@
+/******************************************************
+ * Windows Platform code for Handmade Hero
+ *
+ * Author: Tyler Funk
+ ******************************************************/
+
+/*
+   TODO(tyler): This is not a final platform layer
+ 
+   - Saved game locations
+   - Getting a handle to our own executable file
+   - Asset loading path
+   - Threading (launch a thread)
+   - Raw Input (support for multiple keyboards)
+   - Sleep/timeBeginPeriod
+   - ClipCursor() (multimonitor support)
+   - Fullscreen support
+   - WM_SETCURSOR (cursor visibility control)
+   - QueryCancelAutoplay
+   - WM_ACTIVEATEAPP (for when we are not the active application)
+   - Blit speed improvements (BitBlt)
+   - Hardware acceleration (OpenGL or Direct3D or BOTH??)
+   - GetKeyboardLayout (for French keyboards, international WASD support)
+
+   Just a partial list of stuff!!
+ */
+
+
 #include <windows.h>
 #include <stdint.h>
 #include <xinput.h>
