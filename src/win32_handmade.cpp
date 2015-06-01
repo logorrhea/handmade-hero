@@ -34,24 +34,10 @@
 
 #include "handmade.cpp"
 
-#define internal_func static 
 #define local_persist static 
 #define global_var static 
 #define PI32 3.14159265359f
 
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
-typedef int bool32;
-
-typedef int8_t int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
-
-typedef float real32;
-typedef double real64;
 
 // TODO(tyler): This is a global for now.
 global_var bool Running;
@@ -630,7 +616,12 @@ WinMain(HINSTANCE Instance,
                 }
 
                 // While not handling messages, render things
-                RenderWeirdGradient(&gBackBuffer, xOffset, yOffset);
+                game_offscreen_buffer buffer = {};
+                buffer.memory = gBackBuffer.memory;
+                buffer.width = gBackBuffer.width;
+                buffer.height = gBackBuffer.height;
+                buffer.pitch = gBackBuffer.pitch;
+                GameUpdateAndRender(&buffer);
 
                 // DirectSound output test
                 DWORD playCursor;
@@ -640,8 +631,6 @@ WinMain(HINSTANCE Instance,
                     DWORD byteToLock = (soundOutput.runningSampleIndex*soundOutput.bytesPerSample)%soundOutput.secondaryBufferSize;
                     DWORD bytesToWrite;
 
-                    // TODO(tyler): Change this to using a lower latency offset
-                    // from the playCursor
                     if (byteToLock == playCursor)
                     {
                         bytesToWrite = 0;
@@ -671,7 +660,7 @@ WinMain(HINSTANCE Instance,
                 LARGE_INTEGER endCounter;
                 QueryPerformanceCounter(&endCounter);
 
-                GameLoop();
+                //GameLoop();
 
                 int64 cyclesElapsed = endCycleCount - lastCycleCount;
                 int64 counterElapsed = endCounter.QuadPart - lastCounter.QuadPart;
