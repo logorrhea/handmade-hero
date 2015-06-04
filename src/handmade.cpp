@@ -2,19 +2,24 @@
 
 #include "handmade.h"
 
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
-typedef int bool32;
+internal_func void
+GameOutputSound(game_sound_output_buffer* soundBuffer, int toneHz)
+{
+    local_persist real32 tSine;
+    int16 toneVolume = 3000;
+    int wavePeriod = soundBuffer->samplesPerSecond/toneHz;
 
-typedef int8_t int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
+    int16* sampleOut = soundBuffer->samples;
+    for (int sampleIndex = 0; sampleIndex < soundBuffer->sampleCount; ++sampleIndex)
+    {
+        real32 sineValue = sinf(tSine);
+        int16 sampleValue = (int16)(sineValue * toneVolume);
+        *sampleOut++ = sampleValue;
+        *sampleOut++ = sampleValue;
 
-typedef float real32;
-typedef double real64;
+        tSine += 2.0f*PI32*1.0f/(real32)wavePeriod;
+    }
+}
 
 internal_func void
 RenderWeirdGradient(game_offscreen_buffer* buffer, int xOffset, int yOffset)
@@ -54,10 +59,11 @@ GameShutDown(void)
 }
 
 internal_func void
-GameUpdateAndRender(game_offscreen_buffer *buff)
+GameUpdateAndRender(game_offscreen_buffer *buff, int blueOffset, int greenOffset,
+                    game_sound_output_buffer *soundBuffer, int toneHz)
 {
-    int blueOffset = 0;
-    int greenOffset = 0;
+    // TODO(tyler): Allow sample offsets here for more robust platform options
+    GameOutputSound(soundBuffer, toneHz);
     RenderWeirdGradient(buff, blueOffset, greenOffset);
 }
 
